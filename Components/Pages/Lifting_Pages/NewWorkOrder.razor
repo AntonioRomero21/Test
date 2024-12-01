@@ -1,0 +1,270 @@
+﻿@page "/newwo"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@attribute [Authorize(Roles = UserRoles.TECHNICIAN + "," + UserRoles.LEADER + "," + UserRoles.SUPERVISOR + "," + UserRoles.CLASE_V)]
+<div class="container">
+    <div class="row">
+        <div class="col-2"></div>
+        <div class="col">
+            <div class="card m-3">
+                <div class="card-body">
+                    <h2 class="card-title text-center">Create new work order</h2>
+                    <div class="row">
+                        <div class="col">
+                            <div class="row">
+                                <div class="col">
+                                    <label for="employee" class="form-label mb-0 mt-1">Employee No.</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <!--
+                                    <input type="text" class="form-control" id="employee" />
+                                    -->
+                                    <select id="user" style="width:100%;" class="form-control select2 pt-2"  >
+                                        <option value="0" selected disabled>Select</option>
+                                        @if (users != null)
+                                        {
+                                            @foreach (User user in users)
+                                            {
+                                                <option value="@user.id">@user.firstName @user.lastName</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <label for="asset" class="form-label mb-0 mt-1">Machine No.</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <!--
+                                    <input type="text" class="form-control" id="b" >
+                                    -->
+                                    <select id="asset" style="width:100%;" class="form-control select2 pt-2">
+                                        <option value="0" selected disabled>Select</option>
+                                        @if (assets != null)
+                                        {
+                                            @foreach (Asset asset in assets)
+                                            {
+                                                <option value="@asset.id">@asset.name</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <label for="priority" class="form-label mb-0 mt-1">Priority</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <select id="priority" class="form-select select2 pt-2">
+                                        <option value="0" selected disabled>Select</option>
+                                        <option value="NONE">NONE</option>
+                                        <option value="LOW">LOW</option>
+                                        <option value="MEDIUM">MEDIUM</option>
+                                        <option value="HIGH">HIGH</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <label for="type" class="form-label mb-0 mt-1">Type</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <select id="type" disabled class="form-select select2 pt-2">
+                                        <option selected value="CORRECTIVE">CORRECTIVE</option>
+                                        <option value="PREVENTIVE">PREVENTIVE</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="row">
+                                <div class="col">
+                                    <label for="description" class="form-label mb-0 mt-1 mb-0">Failure description</label>
+                                </div>
+                            </div>
+                            <div class="row flex-grow-1">
+                                <div class="col">
+                                    <textarea id="description" @bind="description" rows="8" class="form-control" placeholder="Leave a comment here"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @if (!message.Equals(String.Empty))
+                    {
+                        <div class="row pt-2">
+                            <div class="col">
+                                <center>
+                                    <p class="text-danger">@message</p>
+                                </center>
+                            </div>
+                        </div>
+                    }
+                    <div class="row">
+                        <div class="col">
+                            <button class="btn btn-outline-primary float-end mt-2" type="button" @onclick="() => OnAddWorkOrder()">Add order <i class="bi-save"></i></button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="col-2"></div>
+    </div>
+</div>
+<script>
+    function initJS(dotNetHelper) {
+        $(document).ready(function () {
+            console.log('function initJS');
+
+            console.log('#user.select2');
+            $('#user').select2();
+            $('#user').on('change', function (e) {
+                console.log('#user.on(change)');
+                var selectedValue = $(this).val();
+                console.log('OnHandleUserChange');
+                dotNetHelper.invokeMethodAsync('OnHandleUserChange', selectedValue);
+            });
+
+            console.log('#asset.select2');
+            $('#asset').select2();
+            $('#asset').on('change', function () {
+                console.log('#asset.on(change)');
+                var selectedValue = $(this).val();
+                console.log('OnHandleAssetChange');
+                dotNetHelper.invokeMethodAsync('OnHandleAssetChange', selectedValue);
+            });
+
+            console.log('#priority.select2');
+            $('#priority').select2();
+            $('#priority').on('change', function () {
+                console.log('#priority.on(change)');
+                var selectedValue = $(this).val();
+                console.log('OnHandlePriorityChange');
+                dotNetHelper.invokeMethodAsync('OnHandlePriorityChange', selectedValue);
+            });
+
+        });
+    }
+</script>
+
+@code {
+    @inject IJSRuntime jsRuntime
+    @inject PipesClient client
+    @inject NavigationManager navigation
+
+    private WorkOrder wo = new WorkOrder();
+    private List<User> users = new();
+    private List<Asset> assets = new();
+
+    private static MXApi api = new MXApi();
+    private PostData post = new PostData(api);
+    private GetData get = new GetData(api);
+
+    Boolean resourcesLoaded = false;
+    Boolean initComplete = false;
+
+    private String selectedUser { get; set; } = String.Empty;
+    private String selectedAsset { get; set; } = String.Empty;
+    private String selectedPriority { get; set; } = String.Empty;
+    private String description { get; set; } = String.Empty;
+    private String message { get; set; } = String.Empty;
+
+    public async Task OnAddWorkOrder()
+    {
+        if (selectedUser.Equals(String.Empty) || selectedUser.Equals("0"))
+        {
+            message = "Please select an Employee";
+            return;
+        }
+        else if (selectedAsset.Equals(String.Empty) || selectedUser.Equals("0"))
+        {
+            message = "Please select a Machine";
+            return;
+        }
+        else if (selectedPriority.Equals(String.Empty) || selectedUser.Equals("0"))
+        {
+            message = "Please select a Priority";
+            return;
+        }
+        else if (description.Equals(String.Empty))
+        {
+            message = "Please provide a description for the order";
+            return;
+        }
+        if (await get.AssetHasWorkOrder(Int32.Parse(selectedAsset)))
+        {
+            message = "Asset has current Work Order";
+            return;
+        }
+        wo.title = selectedUser + " : " + selectedAsset;
+        wo.createdAt = DateTime.UtcNow;
+        wo.extraFields = new ExtraFields
+        {
+            RequesterUserID = selectedUser,
+        };
+        wo.assetId = Int32.Parse(selectedAsset);
+        wo.priority = selectedPriority;
+        wo.description = description;
+        await post.AddWorkOrder(wo);
+        navigation.NavigateTo("/list", forceLoad: true);
+        client.CreateClient("new");
+    }
+
+    [JSInvokable]
+    public void OnHandleUserChange(String value)
+    {
+        selectedUser = value;
+        StateHasChanged(); // Refresh the UI
+    }
+    [JSInvokable]
+    public void OnHandleAssetChange(String value)
+    {
+        selectedAsset = value;
+        StateHasChanged(); // Refresh the UI
+    }
+    [JSInvokable]
+    public void OnHandlePriorityChange(String value)
+    {
+        selectedPriority = value;
+        StateHasChanged(); // Refresh the UI
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            while (true)
+            {
+                if (sw.ElapsedMilliseconds > 5000) return;
+                if (resourcesLoaded) break;
+                await Task.Delay(100);
+            }
+            sw.Stop();
+            Debug.WriteLine("Resources loaded in " + sw.ElapsedMilliseconds + " ms from MaintainX API");
+        }
+        else
+        {
+            if (resourcesLoaded && !initComplete)
+            {
+                await jsRuntime.InvokeAsync<string>("initJS", DotNetObjectReference.Create(this));
+                initComplete = true;
+            }
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        users = await get.GetUsersAsync();
+        assets = await get.GetAssetsAsync();
+        resourcesLoaded = true;
+    }
+}

@@ -1,0 +1,571 @@
+﻿@page "/list"
+@using System.Security.Claims
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = UserRoles.TECHNICIAN + "," + UserRoles.LEADER + "," + UserRoles.SUPERVISOR)]
+
+<PageTitle>List Work Orders</PageTitle>
+<div class="row">
+    <div class="col-1">
+    </div>
+    <div class="col">
+        <div class="row">
+            <div class="col-4">
+            </div>
+            <div class="col-4 d-flex justify-content-center">
+                <h1>Work Orders</h1>
+            </div>
+            <div class="col-4">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-4">
+                <center>
+                    <p class="h1">@DateTime.Now.ToUniversalTime().AddHours(-7).ToString(@"yyyy MMM dd dddd")</p>
+                    <p class="h2">@currentTime</p>
+                </center>
+            </div>
+            <div class="col">
+                <div class="row">
+                    <div class="col">
+                        <!--
+                        <p>Assigned</p>
+                        <select style="width:100%;" id="assigned" class="form-control select2">
+                            <option value="All" selected>All</option>
+                            <option value="Self">Self and available</option>
+                        </select>
+                        -->
+                    </div>
+                    <div class="col">
+                        <p>Time</p>
+                        <select style="width:100%;" id="showing" class="form-control select2">
+                            <option value="All" selected>All time</option>
+                            <option value="Today">Today</option>
+                            <option value="Hour">Last hour</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <p>Status</p>
+                        <select style="width:100%;" id="status" class="form-control select2">
+                            <option value="All" selected>All status</option>
+                            <option value="OPEN">Open</option>
+                            <option value="IN_PROGRESS">In progress</option>
+                            <option value="DONE">Done</option>
+                            <option value="HIDE">Hide done</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-1">
+    </div>
+</div>
+<div class="row">
+    <div class="col-1"></div>
+    <div class="col">
+        <table id="myTable" class="table">
+            <thead>
+                <tr>
+                    <th>Machine</th>
+                    <th>Work Order</th>
+                    <th>Requester</th>
+                    <th>Creation</th>
+                    <th>Assigned</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Attn.</th>
+                    <th>Repair</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (workOrders != null)
+                {
+                    @foreach (WorkOrder wo in workOrders)
+                    {
+                        //if (!(wo.status!.Equals("OPEN") || wo.status!.Equals("IN_PROGRESS"))) continue;
+                        TimeSpan time = DateTime.UtcNow - wo.createdAt.ToUniversalTime();
+                        Int32 woDay = wo.createdAt.DayOfYear;
+                        Int32 woYear = wo.createdAt.Year;
+                        Int32 day = DateTime.Now.ToLocalTime().DayOfYear;
+                        Int32 year = DateTime.Now.ToLocalTime().Year;
+                        if (showing.Equals("Today") && (woDay != day || woYear != year )) continue;
+                        if (showing.Equals("Hour") && time.TotalHours >= 1) continue;
+                        if (status.Equals("OPEN") && !wo.status.Equals(status)) continue;
+                        if (status.Equals("IN_PROGRESS") && !wo.status.Equals(status)) continue;
+                        if (status.Equals("DONE") && !wo.status.Equals(status)) continue;
+                        if (status.Equals("HIDE") && wo.status.Equals("DONE")) continue;
+                        rowCount++;
+                        <tr>
+                            <td>@wo.assetId @(assets.Find(a => a.id.Equals(wo.assetId))?.name ?? "")</td>
+                            <td>@wo.id</td>
+                            <td>
+                                @if (!wo.extraFields.RequesterUserID.Equals(String.Empty))
+                                {
+                                    //ExtraFields? extraFields = System.Text.Json.JsonSerializer.Deserialize<ExtraFields>(wo.extraFields.ToString());
+                                    Int32 requesterID = Int32.Parse(wo.extraFields.RequesterUserID);
+                                    //@(requesterID + " ")
+                                    @(users.Find(u => u.id.Equals(requesterID))?.firstName + " " ?? "") @(users.Find(u => u.id.Equals(requesterID))?.lastName ?? "")
+                                }
+                            </td>
+                            <td>
+                                <center>
+                                    <p>@(wo.createdAt.AddHours(-7).ToString(@"HH:mm:ss"))</p>
+                                    <p>@(wo.createdAt.AddHours(-7).ToString(@"yyyy MMM dd"))</p>
+                                </center>
+                            </td>
+                            <td>
+                                @{
+                                    if (wo.extraFields.AssignedUserID.Equals(String.Empty))
+                                    {
+                                        <center>
+                                            @if (role.Contains("CLASE_V") || role.Contains("SUPERVISOR") || role.Contains("SUPERVISOR"))
+                                            {
+                                                <button id="assignButton" class="btn btn-outline-primary" title="Assign technician" data-bs-toggle="modal" data-bs-target="#assignModal"
+                                                        @onclick="() => OnClickAssign(wo.id)">
+                                                    Assign technician
+                                                    <i class="bi-person-fill-add"></i>
+                                                </button>
+                                            }
+                                        </center>
+                                    }
+                                    else
+                                    {
+                                        Int32 assignedId = Int32.Parse(wo.extraFields.AssignedUserID);
+                                        <center>
+                                            <p>@wo.extraFields.AssignedTimeStamp.ToUniversalTime().AddHours(-7).ToString(@"HH:mm:ss")</p>
+                                            <p>@(users.Find(u => u.id.Equals(assignedId))?.firstName ?? "") @(users.Find(u => u.id.Equals(assignedId))?.lastName ?? "")</p>
+                                        </center>
+                                    }
+                                }
+                            </td>
+                            <td>@wo.priority</td>
+                            <td>@wo.status</td>
+                            <td>
+                                @{
+                                    if (!wo.extraFields.AssignedUserID.Equals(String.Empty))
+                                    {
+                                        if (wo.extraFields.AttendUserID.Equals(String.Empty) && wo.status!.Equals("OPEN"))
+                                        {
+                                            <center>
+                                                <button id="attendButton" class="btn btn-outline-primary" title="Attend order" data-bs-toggle="modal" data-bs-target="#attendModal"
+                                                        @onclick="() => OnClickAttend(wo.id)">
+                                                    Attend order
+                                                    <i class="bi-wrench"></i>
+                                                </button>
+                                            </center>
+                                        }
+                                        else if (!wo.extraFields.AttendUserID.Equals(String.Empty) && (wo.status!.Equals("IN_PROGRESS") || wo.status!.Equals("DONE")))
+                                        {
+                                            TimeSpan ts = wo.extraFields.AttendTimeStamp - wo.extraFields.AssignedTimeStamp;
+                                            if (ts.TotalMilliseconds > 0)
+                                            {
+                                                Int32 attendID = Int32.Parse(wo.extraFields.AttendUserID);
+                                                <center>
+                                                    <p>@(ts.Days > 0 ? ts.Days + "d" : "") @(ts.Hours > 0 ? ts.Hours + "h" : "") @(ts.Minutes > 0 ? ts.Minutes + "m" : "") @(ts.Seconds > 0 ? ts.Seconds + "s" : "")</p>
+                                                    <p>@(users.Find(u => u.id.Equals(attendID))?.firstName ?? "") @(users.Find(u => u.id.Equals(attendID))?.lastName ?? "")</p>
+                                                </center>
+                                            }
+                                        }
+                                    }
+                                }
+                            </td>
+                            <td>
+                                @if (!wo.extraFields.AttendUserID.Equals(String.Empty) && !wo.status!.Equals("DONE"))
+                                {
+                                    <center>
+                                        <a class="btn btn-outline-primary" title="Close order" href="closeWO/@wo.id">
+                                            Close order
+                                            <i class="bi-check2-circle"></i>
+                                        </a>
+                                    </center>
+                                }
+                                else if (wo.status!.Equals("DONE"))
+                                {
+                                    TimeSpan ts = wo.extraFields.CloseTimeStamp - wo.extraFields.AttendTimeStamp;
+                                    if (ts.TotalMilliseconds > 0)
+                                    {
+                                        Int32 id = Int32.Parse(wo.extraFields.RepairUserID);
+                                        <center>
+                                            <p>@(ts.Days > 0 ? ts.Days + "d" : "") @(ts.Days > 0 ? ts.Hours + "h" : "") @(ts.Minutes > 0 ? ts.Minutes + "m" : "") @(ts.Seconds > 0 ? ts.Seconds + "s" : "")</p>
+                                            <p>@(users.Find(u => u.id.Equals(id))?.firstName ?? "") @(users.Find(u => u.id.Equals(id))?.lastName ?? "")</p>
+                                        </center>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                    if (rowCount == 0)
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center">No results</td>
+                        </tr>
+                    }
+                    rowCount = 0;
+                }
+            </tbody>
+        </table>
+        <!-- Modal -->
+        <div class="modal fade" id="assignModal" tabindex="-1" aria-labelledby="assignModal" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="exampleModalLabel">Assign technician @(assignSelectedId == "0" ? "" : assignSelectedId)</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col">
+                                <select style="width:100%;" id="assign" class="select2">
+                                    <option value="0">Empty</option>
+                                    @if (users != null)
+                                    {
+                                        @foreach (User user in users)
+                                        {
+                                            <option value="@user.id">@user.firstName @user.lastName</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        @if (!assignMsg.Equals(String.Empty))
+                        {
+                            <div class="row">
+                                <div class="col">
+                                    <center>
+                                        <p class="text-danger">@assignMsg</p>
+                                    </center>
+                                </div>
+                            </div>
+                        }
+                        <!--
+                        <br />
+                        ...
+                        <hr>
+                        <h2 class="fs-5">Tooltips in a modal</h2>
+                        <p><a href="#" data-bs-toggle="tooltip" title="Tooltip">This link</a> and <a href="#" data-bs-toggle="tooltip" title="Tooltip">that link</a> have tooltips on hover.</p>
+                        -->
+                    </div>
+                    <div class="modal-footer">
+                        <!--
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi-save"></i></button>
+                        -->
+                        <button type="button" class="btn btn-outline-success" @onclick="() => OnAssignSave()"><i class="bi-save"></i> Assign</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal fade" id="attendModal" tabindex="-1" aria-labelledby="attendModal" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="exampleModalLabel">Attend Order @(attendSelectedId == "0" ? "" : attendSelectedId)</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col">
+                                <select style="width:100%;" id="attend" class="form-control select2">
+                                    <option value="0">Empty</option>
+                                    @if (users != null)
+                                    {
+                                        @foreach (User user in users)
+                                        {
+                                            <option value="@user.id">@user.firstName @user.lastName</option>
+                                        }
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                        @if (!attendMsg.Equals(String.Empty))
+                        {
+                            <div class="row">
+                                <div class="col">
+                                    <center>
+                                        <p class="text-danger">@attendMsg</p>
+                                    </center>
+                                </div>
+                            </div>
+                        }
+                        <!--
+                        ...
+                        <hr>
+                        <h2 class="fs-5">Tooltips in a modal</h2>
+                        <p><a href="#" data-bs-toggle="tooltip" title="Tooltip">This link</a> and <a href="#" data-bs-toggle="tooltip" title="Tooltip">that link</a> have tooltips on hover.</p>
+                        -->
+                    </div>
+                    <div class="modal-footer">
+                        <!--
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi-save"></i></button>
+                        -->
+                        <button type="button" class="btn btn-outline-success" @onclick="() => OnAttendSave()"><i class="bi-save"></i> Attend</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-1"></div>
+</div>
+<script>
+    function initJSListWO(dotNetHelper) {
+        $(document).ready(function () {
+            console.log('function initJS');
+            $('#myTable').DataTable();
+
+            console.log('function initJShowing');
+            $('#showing').select2();
+            $('#showing').on('change', function (e) {
+                console.log('#showing.on(change)');;
+                dotNetHelper.invokeMethodAsync('OnShowingChange', $(this).val());
+            });
+
+            console.log('function initJAssigned');
+            $('#assigned').select2();
+            $('#assigned').on('change', function (e) {
+                console.log('#assigned.on(change)');;
+                dotNetHelper.invokeMethodAsync('OnAssignedChange', $(this).val());
+            });
+
+            console.log('function initJStatus');
+            $('#status').select2();
+            $('#status').on('change', function (e) {
+                console.log('#status.on(change)');;
+                dotNetHelper.invokeMethodAsync('OnStatusChange', $(this).val());
+            });
+
+            console.log('function initJSAssignSelect');
+            $('#assign').select2({
+                dropdownParent: $('#assignModal')
+            });
+            $('#assign').on('change', function (e) {
+                console.log('#assign.on(change)');
+                var selectedValue = $(this).val();
+                console.log('OnHandleSelectChange');
+                dotNetHelper.invokeMethodAsync('OnHandleSelectChange', selectedValue);
+            });
+
+            console.log('function initJSAttendSelect');
+            $('#attend').select2({
+                dropdownParent: $('#attendModal')
+            });
+            $('#attend').on('change', function () {
+                console.log('#attend.on(change)');
+                var selectedValue = $(this).val();
+                console.log('OnHandleAssignChange');
+                dotNetHelper.invokeMethodAsync('OnHandleAssignChange', selectedValue);
+            });
+
+            console.log('function assignClick');
+            $('#assignButton').on('click', function () {
+                console.log('#assignButton.on(click)');
+                $('#assign').val(0).change();
+            });
+
+            console.log('function attendClick');
+            $('#attendButton').on('click', function () {
+                console.log('#attendButton.on(click)');
+                $('#attend').val(0).change();
+            });
+
+        });
+    }
+</script>
+
+@code {
+    @inject IJSRuntime jsRuntime2
+    @inject PipesClient client
+    @inject NavigationManager navigation
+    @inject IHttpContextAccessor ctx
+
+    private String currentTime { get; set; }
+    private System.Timers.Timer _timer;
+
+    private static MXApi api = new MXApi();
+    private GetData get = new GetData(api);
+    private PatchData patch = new PatchData(api);
+    private List<WorkOrder>? workOrders { get; set; }
+    private List<User> users = new();
+    private List<Asset> assets = new();
+    private Boolean resourcesLoaded = false;
+
+    private Int32 selectedWorkOrderId { get; set; }
+    private String? assignSelectedId { get; set; }
+    private String? attendSelectedId { get; set; }
+    private String showing { get; set; } = String.Empty;
+    private String status { get; set; } = String.Empty;
+    private String assigned { get; set; } = String.Empty;
+    private String assignMsg = String.Empty;
+    private String attendMsg = String.Empty;
+    private Int32 rowCount = 0;
+
+    private async Task OnAssignSave()
+    {
+        if (assignSelectedId is null) return;
+        if (assignSelectedId.Equals("0"))
+        {
+            assignMsg = "Please select an option";
+            return;
+        }
+        WorkOrder wo = await get.GetWorkInformation(selectedWorkOrderId);
+        //wo.creatorId = Int32.Parse(assignSelectedId);
+        //wo.requesterId = Int32.Parse(assignSelectedId);
+        //if (wo.assignees is null) wo.assignees = new();
+        //wo.assignees.Add(new Assignees() { id = Int32.Parse(assignSelectedId), type = "USER" });
+        wo.extraFields.AssignedUserID = assignSelectedId;
+        wo.extraFields.AssignedTimeStamp = DateTime.UtcNow;
+        await patch.UpdateWorkOrder(wo);
+        navigation.NavigateTo("/list", forceLoad: true);
+        client.CreateClient($"update {wo.id}");
+    }
+
+    private async Task OnAttendSave()
+    {
+        if (attendSelectedId is null) return;
+        if (attendSelectedId.Equals("0"))
+        {
+            attendMsg = "Please select an option";
+            return;
+        }
+        await patch.SetStatus(new Status() { status = "IN_PROGRESS" }, selectedWorkOrderId);
+        WorkOrder wo = await get.GetWorkInformation(selectedWorkOrderId);
+        wo.extraFields.AttendUserID = attendSelectedId;
+        wo.extraFields.AttendTimeStamp = DateTime.UtcNow;
+        await patch.UpdateWorkOrder(wo);
+        navigation.NavigateTo("/list", forceLoad: true);
+        //client.CreateClient($"update {wo.id}");
+    }
+
+    private void OnClickAssign(Int32 value)
+    {
+        selectedWorkOrderId = value;
+        assignMsg = String.Empty;
+        StateHasChanged(); // Refresh the UI
+    }
+
+    private void OnClickAttend(Int32 value)
+    {
+        selectedWorkOrderId = value;
+        attendMsg = String.Empty;
+        StateHasChanged(); // Refresh the UI
+    }
+
+    [JSInvokable]
+    public void OnStatusChange(String value)
+    {
+        Debug.WriteLine("Status change: " + value);
+        status = value;
+        StateHasChanged(); // Refresh the UI
+    }
+
+    [JSInvokable]
+    public void OnShowingChange(String value)
+    {
+        Debug.WriteLine("Showing change: " + value);
+        showing = value;
+        StateHasChanged(); // Refresh the UI
+    }
+
+    [JSInvokable]
+    public void OnAssignedChange(String value)
+    {
+        Debug.WriteLine("Assigned change: " + value);
+        assigned = value;
+        StateHasChanged(); // Refresh the UI
+    }
+
+    [JSInvokable]
+    public void OnHandleSelectChange(String value)
+    {
+        assignSelectedId = value;
+        StateHasChanged(); // Refresh the UI
+    }
+
+    [JSInvokable]
+    public void OnHandleAssignChange(String value)
+    {
+        attendSelectedId = value;
+        StateHasChanged(); // Refresh the UI
+    }
+
+    private async Task LlamarJavaScript()
+    {
+        await jsRuntime2.InvokeVoidAsync("saludar");
+    }
+
+    Boolean jsInitComplete2 = false;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            while (true)
+            {
+                if (sw.ElapsedMilliseconds > 5000) return;
+                if (resourcesLoaded) break;
+                await Task.Delay(100);
+            }
+            //loading = false;
+            sw.Stop();
+            Debug.WriteLine("Work Orders load in " + sw.ElapsedMilliseconds + " ms from MaintainX API");
+        }
+        else
+        {
+            if (resourcesLoaded && workOrders != null && workOrders.Count > 0 && !jsInitComplete2)
+            {
+                await jsRuntime2.InvokeAsync<string>("initJSListWO", DotNetObjectReference.Create(this));
+                Debug.WriteLine("JavaScript: initJSComponents");
+                jsInitComplete2 = true;
+            }
+        }
+    }
+
+    private void UpdateTime(object sender, System.Timers.ElapsedEventArgs e)
+    {
+        // Actualiza el tiempo actual
+        currentTime = DateTime.Now.ToString("HH:mm:ss");
+
+        // Solicita la actualización de la interfaz de usuario
+        InvokeAsync(() => StateHasChanged());
+    }
+
+    private String role = String.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = ctx.HttpContext?.User;
+        if (user != null && user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            Debug.WriteLine(user.Identity.Name);
+            Debug.WriteLine(user.Claims.Count());
+            foreach (Claim claim in user.Claims)
+            {
+                Debug.WriteLine(claim.Type + " : " + claim.Value);
+                if (claim.Type.Contains("/role"))
+                    role += claim.Type + " ";
+            }
+        }
+        else
+        {
+            Debug.WriteLine("Unknown");
+        }
+
+        workOrders = await get.GetWorkAsync();
+        users = await get.GetUsersAsync();
+        assets = await get.GetAssetsAsync();
+        resourcesLoaded = true;
+
+        currentTime = DateTime.Now.ToString("HH:mm:ss");
+
+        // Configura el temporizador
+        _timer = new System.Timers.Timer(1000); // Intervalo de 1 segundo
+        _timer.Elapsed += UpdateTime; // Evento que se ejecuta cada segundo
+        _timer.Start(); // Inicia el temporizador
+    }
+
+    public void Dispose()
+    {
+        // Detiene el temporizador cuando el componente se destruye
+        _timer?.Stop();
+        _timer?.Dispose();
+    }
+}

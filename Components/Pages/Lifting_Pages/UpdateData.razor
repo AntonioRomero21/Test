@@ -1,0 +1,148 @@
+﻿@page "/UpdateData"
+@inject NavigationManager Navigation
+@using System;
+@using System.Text.Json;
+@using System.Text;
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = UserRoles.SUPERVISOR)]
+
+<div class="container">
+    <div class="row mt-4">
+        <div class="col-2"></div>
+        <div class="col">
+            <div class="row pt-2">
+                <div class="col">
+                    <h3 class="text-center">Settings</h3>
+                </div>
+            </div>
+            
+            <div class="row pt-2">
+                <div class="col">
+                    <label for="" class="form-label mb-0 mt-1">Unatended Work Orders</label>
+                </div>
+            </div>
+            <div class="row pt-2">
+                <div class="col d-inline-flex align-items-center justify-content-center">
+                    <label class="p-2">Elapsed time ></label>
+                    <input min="0" max="59" style="width:60px;" @bind="unattended_WO.Minutes1" type="number" class="form-control text-end p-2" placeholder="10" />
+                    <label class="p-2">min</label>
+                    &ensp;
+                    <i class="bi bi-clock" style="font-size:xx-large; color: dimgray;"></i>
+                </div>
+            </div>
+
+            <div class="row pt-2">
+                <div class="col d-inline-flex align-items-center justify-content-center">
+                    <label class="p-2">Elapsed time ></label>
+                    <input min="0" max="59" style="width:60px;" @bind="unattended_WO.Minutes2" type="number" class="form-control text-end p-2" placeholder="30" />
+                    <label class="p-2">min</label>
+                    &ensp;
+                    <i class="bi bi-clock" style="font-size:xx-large; font-weight:bold; color: firebrick;"></i>
+                </div>
+            </div>
+            <div class="row pt-2">
+                <div class="col">
+                    <label for="" class="form-label mb-0 mt-1">Not assigned Work Orders</label>
+                </div>
+            </div>
+            <div class="row pt-2">
+                <div class="col d-inline-flex align-items-center justify-content-center">
+                    <label class="p-2">Elapsed time ></label>
+                    <input min="0" max="59" style="width:60px;" type="number" @bind="notAssig_WO.Minutes" class="form-control text-end p-2" placeholder="20" />
+                    <label class="p-2">min  </label>
+                    &ensp;
+                    <i class="bi bi-person-plus-fill" style="font-size:xx-large; ; color: cornflowerblue;"></i>
+                </div>
+            </div>
+            <div class="row pt-2">
+                <div class="col">
+                    <label for="" class="form-label mb-0 mt-1">Repeated Work orders</label>
+                </div>
+            </div>
+            <div class="row pt-2">
+                <div class="col d-inline-flex align-items-center justify-content-center">
+                    <label class="p-2">Repeated</label>
+                    <input min="0" max="10" style="width:60px;" @bind="repeatabilityCount" type="number" class="form-control text-end p-2" placeholder="1" />
+                    <label class="p-2">times in</label>
+                    <input min="0" max="23" style="width:60px;" @bind="reapTime_WO.Hours" type="number" class="form-control text-end p-2" placeholder="23" />
+                    <label class="p-2">hours</label>
+                    &ensp;
+                    <i class="bi bi-arrow-clockwise" style="font-size:xx-large; color: darkorange;"></i>
+                </div>
+            </div>
+            <div class="row pt-2">
+                <div class="col">
+                    <label for="" class="form-label mb-0 mt-1">Long Duration Work Orders</label>
+                </div>
+            </div>
+            <div class="row pt-2">
+                <div class="col d-inline-flex align-items-center justify-content-center">
+                    <label class="p-2">Elapsed time ></label>
+                    <input min="0" max="59" style="width:60px;" @bind="long_duration" type="number" class="form-control text-end p-2" placeholder="10" />
+                    <label class="p-2">min</label>
+                    &ensp;
+                    <i class="bi bi-clock" style="font-size:xx-large; color: dimgray;"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-2"></div>
+        <div class="row pt-5"> </div>
+        <div class="row pt-2">
+            <div class="col d-inline-flex align-items-center justify-content-center">
+                &thinsp;
+                &thinsp;
+                <button class="btn btn-outline-primary float-end mt-2 btn-lg " type="button" @onclick="SaveConfig">Save <i class="bi-save"/></button>
+            </div>
+        </div>
+    </div>
+    <div style="padding-left: 20%;"></div>
+   
+</div>
+
+@code {
+    private Config? config { get; set; }
+    private Unattended_WO? unattended_WO { get; set; }
+    private NotAssig_WO? notAssig_WO { get; set; }
+    private ReapTime_WO? reapTime_WO { get; set; }
+    private PipesClient? client;
+    private bool submitted = false;
+    private int long_duration { get; set; } = 1;
+    private int repeatabilityCount { get; set; } = 1;
+    private string serialized = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        client = new PipesClient();
+        config ??= new();
+        unattended_WO ??= new();
+        notAssig_WO ??= new();
+        reapTime_WO ??= new();
+    }
+
+    public void SaveConfig()
+    {
+        config = new Config
+            {
+                UrgencyLevels = new UrgencyLevels
+                {
+                    Unattended_WO = unattended_WO,
+                    NotAssig_WO = notAssig_WO,
+                },
+                Repeatability = new Repiblity
+                {
+                    RepeatabilityCount = repeatabilityCount,
+                    Time = reapTime_WO 
+                },
+                Long_Duration = long_duration
+            };
+
+        serialized = JsonSerializer.Serialize(config);
+        // Escribir el archivo JSON
+        string filePath = "wwwroot/config.json";
+        File.WriteAllText(filePath, serialized);
+        //client.CreateClient("Config");
+        submitted = true;
+        Navigation.NavigateTo("/list", forceLoad: true);
+    }
+}

@@ -1,0 +1,267 @@
+﻿@page "/CloseWO/{initialCount:int}"
+@inject NavigationManager Navigation
+@inject PipesClient client
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components
+@using System.Text
+@using System;
+@using System.Collections.Generic;
+@using System.Text.Json;
+@using System.Text.Json.Serialization;
+@using System.Globalization;
+@using System.Threading.Tasks;
+@attribute [Authorize(Roles = UserRoles.TECHNICIAN + "," + UserRoles.LEADER + "," + UserRoles.SUPERVISOR)]
+
+<div class="container">
+    <div class="row">
+        <div class="col-2"></div>
+        <div class="col">
+            <div class="card m-3">
+                <div class="card-body">
+                    <h2 class="card-title text-center">Close work order @InitialCount</h2>
+                    <div class="row">
+                        <div class="col">
+                            <div class="row">
+                                <div class="col">
+                                    <label for="employee" class="form-label mb-0 mt-1">Employee No.</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <!--
+                                    <input type="text" class="form-control" id="employee" />
+                                    -->
+                                    <select style="width:100%;" class="form-control select2" id="employee">
+                                        <option value="0" disabled selected>Empty</option>
+                                        @if (users != null)
+                                        {
+                                            @foreach (User user in users)
+                                            {
+                                                <option value="@user.id">@user.firstName @user.lastName</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <label for="asset" class="form-label mb-0 mt-1">Failure code</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <!--
+                                    <input type="text" class="form-control" id="b" >
+                                    -->
+                                    <select style="width:100%;" class="form-control select2" id="failCode">
+                                        <option value="0" disabled selected>Empty</option>
+                                        <option value="AA">AA Ajuste de presión	</option>
+                                        <option value="AB">AB Reemplazo actuador	</option>
+                                        <option value="AC">AC Recuperacion de niveles	</option>
+                                        <option value="BA">BA Ajuste mecánico a fixtura	</option>
+                                        <option value="BB">BB Reemplazo fixtura	</option>
+                                        <option value="CA">CA Programación o ajuste	</option>
+                                        <option value="CB">CB Reemplazo de dispositivo elec	</option>
+                                        <option value="CC">CC Programa de camaras	</option>
+                                        <option value="CS">CS Reset de dispositivo	</option>
+                                        <option value="CR">CR Ajuste/Reset de Robot	</option>
+                                        <option value="DA">DA Cambio de modelo	</option>
+                                        <option value="DB">DB Cambio de consumible	</option>
+                                        <option value="DC">DC Ajuste de parámetros	</option>
+                                        <option value="DF">DF Cambio de Fecha	</option>
+                                        <option value="EA">EA Ajuste de proceso	</option>
+                                        <option value="EB">EB Pruebas de ingeniería	</option>
+                                        <option value="FA">FA Falta de material	</option>
+                                        <option value="GA">GA Material no conforme	</option>
+                                        <option value="GB">GB Instrumentos de medición	</option>
+                                        <option value="GC">GC Fallo de personal de SPC	</option>
+                                        <option value="HA">HA Falta de personal	</option>
+                                        <option value="HB">HB Material incorrecto	</option>
+                                        <option value="HC">HC Orden de trabajo incorrecta	</option>
+                                        <option value="JA">JA Fallo de Servidor	</option>
+                                        <option value="PL">PL Apertura de Mtto Planeado	</option>
+                                        <option value="IC">IC Falla por edificio	</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <label for="priority" class="form-label mb-0 mt-1">Repair time</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <input type="text" @bind="timeClose" class="form-control" placeholder="" disabled/>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <label for="type" class="form-label mb-0 mt-1">Type</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <select class="form-select select2" id="type" disabled>
+                                        <option selected value="CORRECTIVE">CORRECTIVE</option>
+                                        <option value="PREVENTIVE">PREVENTIVE</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="row">
+                                <div class="col">
+                                    <label for="actions"  class="form-label mb-0 mt-1 mb-0">Corrective actions</label>
+                                </div>
+                            </div>
+                            <div class="row flex-grow-1">
+                                <div class="col">
+                                    <textarea rows="4" class="form-control" @bind="_actions" placeholder="Leave a comment here" id="actions"></textarea>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <label for="suggestions" class="form-label mb-0 mt-1 mb-0">Suggestions</label>
+                                </div>
+                            </div>
+                            <div class="row flex-grow-1">
+                                <div class="col">
+                                    <textarea rows="4" class="form-control" @bind="suggestion" placeholder="Leave a comment here" id="suggestions"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col">
+                            <button class="btn btn-outline-primary float-end mt-2" type="button" @onclick="() => CloseOrder() ">Close order <i class="bi-save"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-2"></div>
+    </div>
+</div>
+<script>
+    function select2Init(dotNetHelper) {
+        $(document).ready(function () {
+            console.log('CloseWorkOrder.razor');
+            $('.select2').select2();
+            $('#employee').on('change', function (e) {
+                console.log('.employee.on(change)')
+                dotNetHelper.invokeMethodAsync('OnChangeEmployee', $(this).val());
+            });
+            $('#failCode').on('change', function (e) {
+                console.log('.failCode.on(change)')
+                dotNetHelper.invokeMethodAsync('OnChangeFailCode', $(this).val());
+            });
+        });
+    }
+</script>
+
+@code {
+    @inject IJSRuntime closeJsRuntime
+    [Parameter]
+    public int InitialCount { get; set; }
+    [SupplyParameterFromForm]
+    public WorkOrder? workOrder { get; set; }
+
+    private static MXApi mXApi = new MXApi();
+    GetData get = new GetData(mXApi);
+    PatchData path = new PatchData(mXApi);
+
+    private string status { get; set; } = string.Empty;
+    private string suggestion { get; set; } = string.Empty;
+    private string _actions { get; set; } = string.Empty;
+    private int? idAssigness { get; set; }
+    private string priority { get; set; } = string.Empty;
+    public List<User> users { get; set; }
+    List<Asset> assets = new();
+    public List<Assignees> ids { get; set; }
+    public Assignees assignee { get; set; }
+
+    public Boolean submitted = false;
+    public Boolean success = false;
+    public string responseContent = String.Empty;
+    public string serialized = String.Empty;
+    public string upgradeserialized = String.Empty;
+
+    bool resourcesLoaded = false;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            while (true)
+            {
+                if (sw.ElapsedMilliseconds > 5000) return;
+                if (resourcesLoaded) break;
+                await Task.Delay(100);
+            }
+            sw.Stop();
+            Debug.WriteLine("Resources loaded in " + sw.ElapsedMilliseconds + " ms from MaintainX API");
+        }
+        else
+        {
+            if (resourcesLoaded && assets != null && assets.Count > 0 && users != null && users.Count > 0)
+            {
+                await closeJsRuntime.InvokeAsync<string>("select2Init", DotNetObjectReference.Create(this));
+            }
+        }
+    }
+
+    private String employee { get; set; } = String.Empty;
+
+    [JSInvokable]
+    public void OnChangeEmployee(String value)
+    {
+        employee = value;
+        StateHasChanged(); // Refresh the UI
+    }
+
+    private TimeSpan time { get; set; } = TimeSpan.Zero;
+    private string timeClose { get; set; } = string.Empty;
+
+
+    private String failCode { get; set; } = String.Empty;
+
+    [JSInvokable]
+    public void OnChangeFailCode(String value)
+    {
+        failCode = value;
+        StateHasChanged(); // Refresh the UI
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        //get = new GetData(mXApi);
+        //path = new PatchData(mXApi);
+        workOrder = await get.GetWorkInformation(InitialCount);
+        users = await get.GetUsersAsync();
+        submitted = true;
+        //status = workOrder.status;
+        assets = await get.GetAssetsAsync();
+        users = await get.GetUsersAsync();
+        time = DateTime.UtcNow.Subtract(workOrder!.extraFields.AttendTimeStamp);
+        timeClose = time.ToString(@"hh\:mm\:ss");
+        resourcesLoaded = true;
+        //client.CreateClient($"update {InitialCount}");
+    }
+
+    private async Task CloseOrder()
+    {
+        //if (workOrder is null) return;
+        //workOrder.extraFields.Actions = _actions;
+        //workOrder.extraFields.Comments = suggestion;
+        //workOrder.extraFields.FailCode = failCode;
+        //workOrder.extraFields.RepairUserID = employee;
+        //workOrder.extraFields.RepairTimeStamp = DateTime.UtcNow;
+        //await path.UpdateWorkOrder(workOrder);
+        //await path.SetStatus(new Status() { status = "DONE" }, InitialCount);
+        //
+        //submitted = true;
+        //Navigation.NavigateTo("/list", forceLoad: true);
+    }
+}   

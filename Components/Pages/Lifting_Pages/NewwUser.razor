@@ -1,0 +1,86 @@
+﻿@page "/newwUser"
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components
+@using System.Text
+@using System;
+@using System.Collections.Generic;
+@using System.Text.Json;
+@using System.Text.Json.Serialization;
+@using System.Globalization;
+@using System.Threading.Tasks;
+
+<center>
+    @if (!submitted)
+    {
+        <h3>Llena el formulario</h3>
+        <div class="container">
+            <div style="padding-left: 20%;"></div>
+            <EditForm Model="user" OnSubmit="Submit" FormName="USForm">
+                <InputText @bind-Value="user!.firstName" />
+                <InputText @bind-Value="user!.lastName" />
+                <button type="submit">Submit</button>
+            </EditForm>
+        </div>
+    }
+    else
+    {
+        <div class="container">
+            @if (success)
+            {
+                <h1>Thank you!</h1>
+            }
+            else
+            {
+                <h3>Post content</h3>
+                <div class="alert alert-secondary" role="alert">
+                    @serialized
+                </div>
+                <h3>Response</h3>
+                <div class="alert alert-danger" role="alert">
+                </div>
+            }
+        </div>
+    }
+</center>
+@code
+{
+    [Parameter]
+    [SupplyParameterFromForm]
+    public User? user {get;set;}
+
+    public Boolean submitted = false;
+    public Boolean success = false;
+    public MXApi mXApi;
+    private PostData post;
+    public string serialized = String.Empty;
+    private Random rnd = new Random();
+    private Random number = new Random();
+
+    protected override void OnInitialized()
+    {
+        mXApi = new MXApi();
+        post = new PostData(mXApi);
+        user ??= new();
+    }
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        //user!.firstName = "Usuario2";
+        //user!.lastName = "Usuario2";
+        user!.email = "newuser" + rnd.Next(1, 1000) + "@newuser.com.mx";
+        user!.phoneNumber = "" + number.Next(00000000, 99999999) + "";
+        //user!.role = "MEMBER";
+        //user!.inviteType = "ALL";
+
+    }
+    private async Task Submit()
+    {
+        serialized = JsonSerializer.Serialize(user);
+        StringContent content = new StringContent(serialized, Encoding.UTF8, "application/json");
+        success = await post.InsertUser(content);
+        //Navigation.NavigateTo("/counter"); //Si hay que redireccionar el método tiene que ser tipo Task
+    }
+ 
+}
+
+

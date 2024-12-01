@@ -1,0 +1,41 @@
+﻿@page "/"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@inject IHttpContextAccessor ctx
+<!--
+attribute [Authorize(Policy = UserPolicy.VIEW_PRODUCT)]
+-->
+@attribute [Authorize]
+
+
+<PageTitle>Home</PageTitle>
+
+<center>
+    <AuthorizeView Roles="CLASE_V">
+        <h4>Welcome <b>@context.User.Identity!.Name you can open work orders! </b></h4>
+    </AuthorizeView>
+    <AuthorizeView Roles="TECHNICIAN">
+        <h4>Welcome <b>@context.User.Identity!.Name you can Open and/or Close Orders! </b></h4>
+    </AuthorizeView>
+    <AuthorizeView Roles="LEADER">
+        <h4>Welcome <b>@context.User.Identity!.Name yuou can Open and/or Close Orders, Assign Orders to Technicians, View Repetitive Orders, View Repair Duration Time! </b></h4>
+    </AuthorizeView>
+    <AuthorizeView Roles="SUPERVISOR">
+        <h4>Welcome <b>@context.User.Identity!.Name you can Open and/or Close Orders, Assign Orders to Technicians, View Repetitive Orders, View Repair Duration Time, Modify Interface Parameters (Maximum # of repetitive equipment, Maximum # of repetitions, # of Equipment with Orders with repairs greater than XX min, Configuration of # of maximum repair minutes).! </b></h4>
+    </AuthorizeView>
+</center>
+
+@code {
+    protected override void OnInitialized()
+    {
+        var user = ctx.HttpContext?.User;
+        if (user != null && user.Identity != null && user.Identity.IsAuthenticated)
+        {
+            Debug.WriteLine(user.Identity.Name);
+        }
+        else
+        {
+            Debug.WriteLine("Unknown");
+        }
+    }
+}

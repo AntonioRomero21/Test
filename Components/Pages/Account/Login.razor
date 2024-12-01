@@ -1,0 +1,141 @@
+﻿@page "/login"
+@layout EmptyLayout
+@using HysonMaintainXOrders.Components
+@using HysonMaintainXOrders.Components.Layout
+@using HysonMaintainXOrders.Shared.Entities
+@using HysonMaintainXOrders.Shared.Data
+@using HysonMaintainXOrders.Shared.ViewModels
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Authentication.Cookies
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext dbContext
+@inject NavigationManager navigationManager
+<!--
+<div class="row d-flex justify-content-center align-items-center vh-100">
+-->
+<div class="row">
+    <div class="col"></div>
+    <div class="col">
+        <div class="row">
+            <div class="col"></div>
+            <div class="col-8">
+                <center>
+                    <img style="width:75%;" src="hyson.jpg" />
+                </center>
+            </div>
+            <div class="col"></div>
+        </div>
+        <div>
+            <center>
+                <h1>Maintain X Orders</h1>
+            </center>
+        </div>
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-body">
+                        <EditForm Model="Model" OnValidSubmit="Auth" FormName="LoginForm">
+                            <DataAnnotationsValidator />
+                            <div class="mb-3 text-center flex-column">
+                                <h3>Login</h3>
+                            </div>
+                            <div class="mb-3">
+                                <label>User Name</label>
+                                <InputText @bind-Value="Model.NumberOrEmail" class="form-control"></InputText>
+
+                            </div>
+                            <div class="mb-3">
+                                <label>Password</label>
+                                <InputText type="password" @bind-Value="Model.Password" class="form-control"></InputText>
+
+                            </div>
+                            <div class="mb-3 text-center">
+                                <span class="text-danger">@errorMessage</span>
+                            </div>
+                            <div class="mb-3 text-center">
+                                <center>
+                                    <button type="submit" class="btn btn-outline-success">Login</button>
+                                </center>
+                                <button type="button" class="btn btn-sm btn-outline-secondary float-end">Lang</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+      
+    </div>
+    <div class="col"></div>
+</div>
+<!--
+<div class="contenedor-imagen">
+    <label>Developed by</label>
+    <img src="CESAT.png" />
+</div>
+<style>
+    .contenedor-imagen{
+        display:flex;
+        justify-content:flex-end;
+        align-items:flex-end;
+    }
+    .contenedor-imagen img{
+       width:50px;
+       height:50px;
+    }
+</style>
+-->
+
+@code {
+    [CascadingParameter]
+    public HttpContext? httpContext { get; set; }
+
+    [SupplyParameterFromForm]
+    public LoginViewModel Model { get; set; } = new();
+
+    private string? errorMessage;
+
+    public async Task Auth()
+    {
+        string route = string.Empty;
+        if (string.IsNullOrWhiteSpace(Model.NumberOrEmail) || string.IsNullOrWhiteSpace(Model.Password))
+        {
+            errorMessage = "Invalid User Name or Password";
+            return;
+        }
+        var userAccount = dbContext.UserAccounts.Where(x => x.Number == Model.NumberOrEmail || x.Email == Model.NumberOrEmail).FirstOrDefault();
+        if (userAccount is null || userAccount.Password != Model.Password)
+        {
+            errorMessage = "Invalid User Name or Password";
+            return;
+        }
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.Name, userAccount.FirstName + " " + userAccount.LastName)
+        };
+
+        var userRoles = await dbContext.UserAccountRoles.Where(user => user.UserAccountId == userAccount.Id).Select(user => user.RoleName).ToListAsync();
+
+        foreach (var role in userRoles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+            if (role == "CLASE_V")
+                route = "/newwo";
+            else if (role == "TECHNICIAN" || role == "LEADER")
+                route = "/list";
+            else if (role == "SUPERVISOR")
+                route = "/";
+        }
+        /*
+         */
+
+        //List<UserAccountPolicy> userAccountPolicies = await dbContext.UserAccountPolicies.Where(x => x.UserAccountId == userAccount.Id && x.IsEnabled).ToListAsync();
+        //foreach (UserAccountPolicy policy in userAccountPolicies) claims.Add(new Claim(policy.UserPolicy!, "true"));
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+        await httpContext!.SignInAsync(principal);
+        navigationManager.NavigateTo(route);
+
+    }
+
+}

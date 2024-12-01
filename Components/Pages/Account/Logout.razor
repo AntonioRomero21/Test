@@ -1,0 +1,33 @@
+﻿@page "/logout"
+@layout EmptyLayout
+@using HysonMaintainXOrders.Components.Layout
+@using Microsoft.AspNetCore.Authentication
+@inject NavigationManager navigationManager
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body flex-column">
+                <div class="text-center mt-2">
+                    <span class="text-danger fw-bolder">You've successfully logged out the application. You are being redirect to login.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public HttpContext? HttpContext { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        if (HttpContext!.User.Identity!.IsAuthenticated)
+        {
+            await HttpContext.SignOutAsync();
+        }
+        //await Task.Delay(2000); // wait for 2 seconds
+        navigationManager.NavigateTo("/login", forceLoad: true);
+    }
+}

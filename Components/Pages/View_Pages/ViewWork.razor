@@ -1,0 +1,207 @@
+﻿@page "/viewOr/{initialCount:int}"
+@inject NavigationManager Navigation
+@inject PipesClient client
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components
+@using System.Text
+@using System;
+@using System.Collections.Generic;
+@using System.Text.Json;
+@using System.Text.Json.Serialization;
+@using System.Globalization;
+@using System.Threading.Tasks;
+@attribute [Authorize(Roles = UserRoles.LEADER + "," + UserRoles.SUPERVISOR)]
+
+@if (workOrder != null)
+{
+    <center>
+        <h3>Upgrade Work Order</h3>
+    </center>
+    <div class="container">
+        <div style="padding-left: 20%;"></div>
+        <EditForm Model="workOrder" OnSubmit="Submit" FormName="WOForm">
+            <div class="row">
+                <div class="col">
+                    <div class="mb-2">
+                        <div class="row row-cols-auto">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">No. Empleado:</label>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" readonly placeholder="@workOrder.creatorId" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="row row-cols-auto">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Orden de trabajo:</label>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" readonly placeholder="#@workOrder.sequentialId" />
+                            </div>
+                        </div>
+                    </div>
+                   
+                    <div class="mb-2">
+                        <div class="row row-cols-auto">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Id Activo:</label>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" readonly placeholder="@workOrder.assetId" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="row row-cols-auto">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Titulo:</label>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" readonly placeholder="@workOrder.title" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="row row-cols-auto">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Descripcion:</label>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" id="Description" readonly placeholder="@workOrder.description" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="row row-cols-auto">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Localizacion:</label>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" readonly placeholder="@workOrder.locationId" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="row row-cols-auto">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Id Organizacion:</label>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" readonly placeholder="@workOrder.organizationId" />
+                            </div>
+                        </div>
+                    </div>
+                   
+                    <div class="mb-2">
+                        <div class="row row-cols-auto">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Fecha de creacion:</label>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" readonly placeholder="@workOrder.createdAt" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="row row-cols-auto">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Fecha de actualizacion:</label>
+                            </div>
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" readonly placeholder="@workOrder.updatedAt" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="row g-0">
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Id de Asignacion:</label>
+                                <InputSelect @bind-Value="idAssigness">
+                                    <option value="0">Sin asignacion</option>
+                                    @foreach (var item in users)
+                                    {
+                                        <option value=@item.id>@item.firstName</option>
+                                    }
+                                </InputSelect>
+                            </div>
+
+                            <div class="col-6 col-md-4">
+                                <label for="for=" formGroupExampleInput" class="form-label">Prioridad:</label>
+
+                                <select @bind="priority">
+                                    <option value="NONE">NONE</option>
+                                    <option value="LOW">LOW</option>
+                                    <option value="MEDIUM">MEDIUM</option>
+                                    <option value="HIGH">HIGH</option>
+                                </select>
+                            </div>
+                            <div class="col6 col-md-4">
+                                <button type="submit">Submit</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+}
+
+
+
+@code {
+    [Parameter]
+    public int InitialCount { get; set; }
+    [SupplyParameterFromForm]
+    public WorkOrder? workOrder { get; set; }
+
+    MXApi mXApi = new MXApi();
+    GetData? get;
+    PatchData? path;
+
+    private int id;
+    private string priority { get; set; } = string.Empty;
+    private string status { get; set; }
+    private int? idAssigness { get; set; }
+    public List<User> users { get; set; }   
+    public List<Assignees> ids { get; set; }
+    public Assignees assignee { get; set; }
+
+    public Boolean submitted = false;
+    public Boolean success = false;
+    public string responseContent = String.Empty;
+    public string serialized = String.Empty;
+    public string upgradeserialized = String.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        id = InitialCount;
+        get = new GetData(mXApi);
+        path = new PatchData(mXApi);
+        workOrder = await get.GetWorkInformation(id);
+        users = await get.GetUsersAsync();
+        submitted = true;
+        //idAssigness = workOrder.assigneeIds.FirstOrDefault() == 0 ? 0 : workOrder.assigneeIds.First();
+        priority = workOrder.priority;
+    }
+
+    private async Task Submit()
+    {
+        RootObject root = new RootObject
+        {
+            assignees = new List<Assignees>
+            {
+                new Assignees{type="USER",id=idAssigness}
+            },
+            priority = priority
+        };
+        upgradeserialized = JsonSerializer.Serialize(root);
+        StringContent upgrade = new StringContent(upgradeserialized, Encoding.UTF8, "application/json");
+        await path.UpdateWorkOrders(upgrade, id);
+        client.CreateClient($"update {id}");
+        submitted = true;
+        Navigation.NavigateTo("/list"); //Si hay que redireccionar el método tiene que ser tipo Task
+    }
+}

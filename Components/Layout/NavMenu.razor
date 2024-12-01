@@ -1,0 +1,80 @@
+﻿@inject NavigationManager nav
+@implements IDisposable
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">MaintainX Orders</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <AuthorizeView Roles="SUPERVISOR,LEADER,TECHNICIAN,CLASE_V">
+                    <Authorized Context="clasev">
+                        <li class="nav-item">
+                            <a class="nav-link" aria-current="page" href="/newwo/" target="_self">New Work Order</a>
+                        </li>
+                        <AuthorizeView Roles="SUPERVISOR,LEADER,TECHNICIAN">
+                            <Authorized Context="technician">
+                                <li class="nav-item">
+                                    <a class="nav-link" href="/list/" target="_self">Orders List</a>
+                                </li>
+                                <AuthorizeView Roles="SUPERVISOR">
+                                    <Authorized>
+                                        @if (showSettings)
+                                        {
+                                            <li class="nav-item">
+                                                <a class="nav-link" href="/UpdateData/" target="_self">Settings</a>
+                                            </li>
+                                        }
+                                    </Authorized>
+                                </AuthorizeView>
+                            </Authorized>
+                        </AuthorizeView>
+                    </Authorized>
+                </AuthorizeView>
+            </ul>
+            <AuthorizeView>
+                <Authorized>
+                    <div class="card m-1">
+                        <div class="card-body p-2">
+                            <div class="text-muted fst-italic fs-6">
+                                @context.User.Identity!.Name
+                                <!--
+                                showSettings: @showSettings
+                                -->
+                            </div>
+                        </div>
+                    </div>
+                    <a style="text-align: right" class="btn btn-outline-danger" href="/logout" title="sign out"><i class="bi-box-arrow-right"></i> Logout</a>
+                </Authorized>
+                <NotAuthorized>
+                    <a style="text-align: right" class="btn btn-outline-primary" href="/login">Login</a>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</nav>
+
+@code {
+    private bool showSettings = false;
+    protected override void OnInitialized()
+    {
+        if (nav.Uri.Contains("/list"))
+        {
+            showSettings = true;
+            StateHasChanged();
+        }
+        nav.LocationChanged += OnLocationChanged;
+    }
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        showSettings = e.Location.Contains("/list");
+        StateHasChanged();
+    }
+    /*
+     */
+    public void Dispose()
+    {
+        nav.LocationChanged -= OnLocationChanged;
+    }
+}
